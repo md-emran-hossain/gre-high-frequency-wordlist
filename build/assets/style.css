@@ -1,15 +1,29 @@
 :root {
   color-scheme: light dark;
-  --text: light-dark(#1f2328, #e6edf3);
-  --muted: light-dark(#59636e, #9198a1);
-  --background: light-dark(#ffffff, #0d1117);
-  --surface: light-dark(#f6f8fa, #151b23);
-  --border: light-dark(#d1d9e0, #3d444d);
-  --scrollbar-thumb: light-dark(#a8b0b9, #59636e);
-  --link: light-dark(#0969da, #4493f8);
+  --text: #1f2328;
+  --muted: #59636e;
+  --background: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d1d9e0;
+  --scrollbar-thumb: #a8b0b9;
+  --link: #0969da;
+  --focus-ring: rgba(9, 105, 218, 0.15);
   --content-width: 760px;
   --rail-width: 28px;
   --control-size: 40px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --background: #0d1117;
+    --surface: #151b23;
+    --border: #3d444d;
+    --scrollbar-thumb: #59636e;
+    --link: #4493f8;
+    --focus-ring: rgba(68, 147, 248, 0.25);
+  }
 }
 
 :root[data-theme="light"] {
@@ -18,6 +32,14 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --text: #e6edf3;
+  --muted: #9198a1;
+  --background: #0d1117;
+  --surface: #151b23;
+  --border: #3d444d;
+  --scrollbar-thumb: #59636e;
+  --link: #4493f8;
+  --focus-ring: rgba(68, 147, 248, 0.25);
 }
 
 @property --thumb-top {
@@ -58,7 +80,7 @@ html.scrolling {
 .rail-words {
   scrollbar-width: none;
   background:
-    linear-gradient(var(--thumb-color), var(--thumb-color)) no-repeat right 0 top var(--thumb-top) / 4px var(--thumb-height),
+    linear-gradient(var(--thumb-color, transparent), var(--thumb-color, transparent)) no-repeat right 0 top var(--thumb-top, 0) / 4px var(--thumb-height, 0),
     var(--surface);
   transition: --thumb-color 0.2s;
 }
@@ -167,7 +189,7 @@ a:hover {
 
 #search:focus {
   border-color: var(--link);
-  box-shadow: 0 0 0 3px light-dark(rgba(9, 105, 218, 0.15), rgba(68, 147, 248, 0.25));
+  box-shadow: 0 0 0 3px var(--focus-ring);
   outline: none;
 }
 
@@ -331,7 +353,7 @@ a:hover {
 .download-link:focus-visible {
   outline: none;
   border-color: var(--link);
-  box-shadow: 0 0 0 3px light-dark(rgba(9, 105, 218, 0.15), rgba(68, 147, 248, 0.25));
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .download-link svg {
