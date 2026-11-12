@@ -32,7 +32,7 @@
 <nav class="rail" aria-label="Words by letter">
 {{- range .Letters}}
   <div class="rail-group">
-    <a class="rail-letter" href="#{{(index .Words 0).Slug}}">{{.Letter}}</a>
+    <a class="rail-letter" draggable="false" href="#{{(index .Words 0).Slug}}">{{.Letter}}</a>
   </div>
 {{- end}}
 </nav>

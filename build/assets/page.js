@@ -287,6 +287,8 @@ rail.addEventListener("click", (event) => {
   }
 });
 
+rail.addEventListener("contextmenu", (event) => event.preventDefault());
+
 const spyOffset = 96;
 let sectionTops = [];
 let activeInitial = null;
