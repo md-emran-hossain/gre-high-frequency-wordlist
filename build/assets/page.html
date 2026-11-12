@@ -33,11 +33,6 @@
 {{- range .Letters}}
   <div class="rail-group">
     <a class="rail-letter" href="#{{(index .Words 0).Slug}}">{{.Letter}}</a>
-    <ul class="rail-words">
-    {{- range .Words}}
-      <li><a href="#{{.Slug}}">{{.Name}}</a></li>
-    {{- end}}
-    </ul>
   </div>
 {{- end}}
 </nav>

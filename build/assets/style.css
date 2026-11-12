@@ -76,8 +76,7 @@ html.scrolling {
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-#results,
-.rail-words {
+#results {
   scrollbar-width: none;
   background:
     linear-gradient(var(--thumb-color, transparent), var(--thumb-color, transparent)) no-repeat right 0 top var(--thumb-top, 0) / 4px var(--thumb-height, 0),
@@ -85,8 +84,7 @@ html.scrolling {
   transition: --thumb-color 0.2s;
 }
 
-#results.scrolling,
-.rail-words.scrolling {
+#results.scrolling {
   --thumb-color: var(--scrollbar-thumb);
 }
 
@@ -456,6 +454,9 @@ a:hover {
   justify-content: safe center;
   width: var(--rail-width);
   text-align: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .rail-group {
@@ -469,7 +470,7 @@ a:hover {
 .rail-letter {
   display: block;
   color: var(--muted);
-  font-size: clamp(8px, calc((100vh - 80px) / 34), 0.7rem);
+  font-size: calc(clamp(8px, calc((100vh - 80px) / 34), 0.7rem) * var(--zoom, 1));
   line-height: 1;
 }
 
@@ -477,37 +478,4 @@ a:hover {
 .rail-letter.active {
   color: var(--link);
   text-decoration: none;
-}
-
-.rail-words {
-  display: none;
-  position: fixed;
-  top: 50%;
-  right: var(--rail-width);
-  max-height: 80vh;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-  text-align: left;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transform: translateY(-50%);
-}
-
-.rail-words a {
-  display: block;
-  padding: 4px 16px;
-  color: var(--text);
-}
-
-.rail-words a:hover,
-.rail-words a.active {
-  background: var(--border);
-  text-decoration: none;
-}
-
-.rail-group:hover .rail-words,
-.rail-group:focus-within .rail-words {
-  display: block;
 }

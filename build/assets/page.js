@@ -130,20 +130,151 @@ document.addEventListener("click", (event) => {
   }
 });
 
-rail.addEventListener("click", (event) => {
-  if (event.target.closest(".rail-words")) {
-    event.target.blur();
+const railGroups = Array.from(rail.querySelectorAll(".rail-group"));
+const railLetters = railGroups.map((group) => group.querySelector(".rail-letter"));
+const railLetterByInitial = new Map(railLetters.map((letter) => [letter.textContent, letter]));
+let zoomedCenters = null;
+const maxZoom = 2.4;
+const zoomReachInLetters = 3.5;
+const maxLift = 8;
+const springStiffness = 420;
+const springDamping = 26;
+const settleThreshold = 0.001;
+
+const letterMotion = railLetters.map(() => ({
+  zoom: { value: 1, velocity: 0, target: 1 },
+  shift: { value: 0, velocity: 0, target: 0 },
+  lift: { value: 0, velocity: 0, target: 0 },
+}));
+let animationFrame = null;
+let lastFrameTime = 0;
+
+function nearestLetterIndex(pointerY, centers) {
+  let nearest = 0;
+  centers.forEach((center, index) => {
+    if (Math.abs(center - pointerY) < Math.abs(centers[nearest] - pointerY)) {
+      nearest = index;
+    }
+  });
+  return nearest;
+}
+
+function measureRailCenters() {
+  return railGroups.map((group) => {
+    const box = group.getBoundingClientRect();
+    return box.top + box.height / 2;
+  });
+}
+
+function aimRailLetters(pointerY) {
+  const centers = measureRailCenters();
+  const spacing = centers.length > 1 ? centers[1] - centers[0] : 1;
+  const reach = spacing * zoomReachInLetters;
+  const zooms = centers.map((center) => {
+    const distance = Math.abs(center - pointerY);
+    const closeness = distance < reach ? (1 + Math.cos((Math.PI * distance) / reach)) / 2 : 0;
+    return 1 + (maxZoom - 1) * closeness;
+  });
+
+  const railTop = centers[0] - spacing / 2;
+  const slotStarts = [];
+  let slotEnd = 0;
+  zooms.forEach((zoom) => {
+    slotStarts.push(slotEnd);
+    slotEnd += zoom * spacing;
+  });
+
+  const pointerSlots = Math.min(Math.max((pointerY - railTop) / spacing, 0), zooms.length - 1e-6);
+  const pointerSlot = Math.floor(pointerSlots);
+  const pointerOffset = slotStarts[pointerSlot] + (pointerSlots - pointerSlot) * zooms[pointerSlot] * spacing;
+  const anchorShift = pointerSlots * spacing - pointerOffset;
+
+  zoomedCenters = centers.map((center, index) => {
+    const zoomedCenter = railTop + anchorShift + slotStarts[index] + (zooms[index] * spacing) / 2;
+    letterMotion[index].zoom.target = zooms[index];
+    letterMotion[index].shift.target = zoomedCenter - center;
+    letterMotion[index].lift.target = ((zooms[index] - 1) / (maxZoom - 1)) * maxLift;
+    return zoomedCenter;
+  });
+  startRailAnimation();
+}
+
+function relaxRailLetters() {
+  zoomedCenters = null;
+  letterMotion.forEach(({ zoom, shift, lift }) => {
+    zoom.target = 1;
+    shift.target = 0;
+    lift.target = 0;
+  });
+  startRailAnimation();
+}
+
+function stepSpring(spring, seconds) {
+  const acceleration = (spring.target - spring.value) * springStiffness - spring.velocity * springDamping;
+  spring.velocity += acceleration * seconds;
+  spring.value += spring.velocity * seconds;
+}
+
+function isSettled(spring) {
+  return Math.abs(spring.target - spring.value) < settleThreshold && Math.abs(spring.velocity) < settleThreshold;
+}
+
+function drawRailLetters(time) {
+  const seconds = Math.min((time - lastFrameTime) / 1000, 1 / 30);
+  lastFrameTime = time;
+  let settled = true;
+  railLetters.forEach((letter, index) => {
+    const { zoom, shift, lift } = letterMotion[index];
+    for (const spring of [zoom, shift, lift]) {
+      stepSpring(spring, seconds);
+      settled = settled && isSettled(spring);
+    }
+    letter.style.setProperty("--zoom", zoom.value);
+    letter.style.transform = `translate(${-lift.value}px, ${shift.value}px)`;
+  });
+  if (settled) {
+    animationFrame = null;
+    if (zoomedCenters === null) {
+      railLetters.forEach((letter) => {
+        letter.style.removeProperty("--zoom");
+        letter.style.removeProperty("transform");
+      });
+    }
+  } else {
+    animationFrame = requestAnimationFrame(drawRailLetters);
+  }
+}
+
+function startRailAnimation() {
+  if (animationFrame === null) {
+    lastFrameTime = performance.now();
+    animationFrame = requestAnimationFrame(drawRailLetters);
+  }
+}
+
+rail.addEventListener("pointerdown", (event) => aimRailLetters(event.clientY));
+rail.addEventListener("pointermove", (event) => aimRailLetters(event.clientY));
+rail.addEventListener("pointerleave", relaxRailLetters);
+rail.addEventListener("pointercancel", relaxRailLetters);
+rail.addEventListener("pointerup", (event) => {
+  if (event.pointerType !== "mouse") {
+    relaxRailLetters();
   }
 });
 
-const railGroups = Array.from(rail.querySelectorAll(".rail-group"));
-const railLetters = railGroups.map((group) => group.querySelector(".rail-letter"));
-const railWordLinks = new Map(
-  Array.from(rail.querySelectorAll(".rail-words a"), (link) => [link.getAttribute("href").slice(1), link]),
-);
+rail.addEventListener("click", (event) => {
+  if (event.detail === 0) {
+    return;
+  }
+  event.preventDefault();
+  const nearest = nearestLetterIndex(event.clientY, zoomedCenters ?? measureRailCenters());
+  const target = railLetters[nearest].getAttribute("href");
+  location.hash = target;
+});
+
 const spyOffset = 96;
 let sectionTops = [];
-let activeSlug = null;
+let activeInitial = null;
 let spyScheduled = false;
 
 function measureSections() {
@@ -167,25 +298,13 @@ function findActiveIndex() {
 
 function updateScrollSpy() {
   spyScheduled = false;
-  const slug = wordSections[findActiveIndex()].id;
-  if (slug === activeSlug) {
+  const initial = wordSections[findActiveIndex()].id[0].toUpperCase();
+  if (initial === activeInitial) {
     return;
   }
-  railWordLinks.get(activeSlug)?.classList.remove("active");
-  railLetters.forEach((letter) => letter.classList.remove("active"));
-
-  activeSlug = slug;
-  const activeLink = railWordLinks.get(slug);
-  activeLink.classList.add("active");
-  activeLink.closest(".rail-group").querySelector(".rail-letter").classList.add("active");
-}
-
-function scrollActiveWordIntoView(group) {
-  const list = group.querySelector(".rail-words");
-  const activeLink = list.querySelector("a.active");
-  if (activeLink) {
-    list.scrollTop = activeLink.offsetTop - list.clientHeight / 2;
-  }
+  railLetterByInitial.get(activeInitial)?.classList.remove("active");
+  activeInitial = initial;
+  railLetterByInitial.get(initial).classList.add("active");
 }
 
 function scheduleScrollSpy() {
@@ -194,11 +313,6 @@ function scheduleScrollSpy() {
     requestAnimationFrame(updateScrollSpy);
   }
 }
-
-railGroups.forEach((group) => {
-  group.addEventListener("mouseenter", () => scrollActiveWordIntoView(group));
-  group.addEventListener("focusin", () => scrollActiveWordIntoView(group));
-});
 
 window.addEventListener("scroll", scheduleScrollSpy, { passive: true });
 window.addEventListener("resize", () => {
@@ -253,7 +367,6 @@ function trackScrollbar(scroller) {
 }
 
 trackScrollbar(resultsList);
-rail.querySelectorAll(".rail-words").forEach(trackScrollbar);
 
 const showPageScrollbar = showWhileScrolling(document.documentElement);
 window.addEventListener("scroll", showPageScrollbar, { passive: true });
