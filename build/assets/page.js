@@ -136,7 +136,8 @@ const railLetterByInitial = new Map(railLetters.map((letter) => [letter.textCont
 let zoomedCenters = null;
 const maxZoom = 2.4;
 const zoomReachInLetters = 3.5;
-const maxLift = 8;
+const mouseLift = 8;
+const touchLift = 30;
 const springStiffness = 420;
 const springDamping = 26;
 const settleThreshold = 0.001;
@@ -166,7 +167,7 @@ function measureRailCenters() {
   });
 }
 
-function aimRailLetters(pointerY) {
+function aimRailLetters(pointerY, maxLift) {
   const centers = measureRailCenters();
   const spacing = centers.length > 1 ? centers[1] - centers[0] : 1;
   const reach = spacing * zoomReachInLetters;
@@ -252,13 +253,27 @@ function startRailAnimation() {
   }
 }
 
-rail.addEventListener("pointerdown", (event) => aimRailLetters(event.clientY));
-rail.addEventListener("pointermove", (event) => aimRailLetters(event.clientY));
+function liftFor(event) {
+  return event.pointerType === "mouse" ? mouseLift : touchLift;
+}
+
+function selectNearestLetter(pointerY) {
+  const nearest = nearestLetterIndex(pointerY, zoomedCenters ?? measureRailCenters());
+  location.hash = railLetters[nearest].getAttribute("href");
+}
+
+let touchSelectionHandled = false;
+
+rail.addEventListener("pointerdown", (event) => aimRailLetters(event.clientY, liftFor(event)));
+rail.addEventListener("pointermove", (event) => aimRailLetters(event.clientY, liftFor(event)));
 rail.addEventListener("pointerleave", relaxRailLetters);
 rail.addEventListener("pointercancel", relaxRailLetters);
 rail.addEventListener("pointerup", (event) => {
   if (event.pointerType !== "mouse") {
+    selectNearestLetter(event.clientY);
     relaxRailLetters();
+    touchSelectionHandled = true;
+    setTimeout(() => (touchSelectionHandled = false), 500);
   }
 });
 
@@ -267,9 +282,9 @@ rail.addEventListener("click", (event) => {
     return;
   }
   event.preventDefault();
-  const nearest = nearestLetterIndex(event.clientY, zoomedCenters ?? measureRailCenters());
-  const target = railLetters[nearest].getAttribute("href");
-  location.hash = target;
+  if (!touchSelectionHandled) {
+    selectNearestLetter(event.clientY);
+  }
 });
 
 const spyOffset = 96;
